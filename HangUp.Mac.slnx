@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HangUp.Mac.App/HangUp.Mac.App.csproj" />
+    <Project Path="src/HangUp.Mac.Core/HangUp.Mac.Core.csproj" />
+  </Folder>
+</Solution>

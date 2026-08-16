@@ -1,0 +1,21 @@
+# HangUp macOS Project Guidelines (Avalonia UI)
+
+## Context
+This is a cross-platform .NET 8 application built using Avalonia UI. It is specifically designed to manage the firewall and background services for macOS.
+You are tasked with continuing the development of this application.
+
+## Core Directives
+1.  **Architecture Limits:** DO NOT attempt to block `.app` paths via `pf` firewall. We use `/etc/hosts` domain blocking and `launchctl` daemon unloading instead.
+2.  **Privilege Escalation:** To edit `/etc/hosts` or unload root daemons, you MUST use `osascript` to prompt for sudo native to macOS. (See `MacFirewallManager.cs`).
+3.  **UI Framework:** This is **Avalonia UI** (XAML). Do not write WPF or MAUI code. Use `TransparencyLevelHint="AcrylicBlur"` for glassmorphism.
+4.  **Git Undo:** ALWAYS run `git commit -am "Progress"` after finishing a task to maintain an undo history.
+
+## Important References
+Before starting work, read the following files:
+*   `PROJECT_CONCEPT.md` - Understands how the Mac blocking works.
+*   `TODO.md` - To see what needs to be done next.
+
+## Build Process
+To compile for macOS from this environment, use:
+*   Apple Silicon: `dotnet publish "src/HangUp.Mac.App/HangUp.Mac.App.csproj" -c Release -r osx-arm64 --self-contained true`
+*   Intel Mac: `dotnet publish "src/HangUp.Mac.App/HangUp.Mac.App.csproj" -c Release -r osx-x64 --self-contained true`
