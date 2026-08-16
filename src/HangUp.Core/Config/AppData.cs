@@ -1,0 +1,47 @@
+using System.Collections.Generic;
+
+namespace HangUp.Core.Config
+{
+    public static class AppData
+    {
+        public static string GetJson()
+        {
+            return @"{
+  ""apps"": [
+    {
+      ""name"": ""Adobe"",
+      ""paths"": [""C:\\Program Files\\Adobe"", ""C:\\Program Files (x86)\\Adobe"", ""%LOCALAPPDATA%\\Adobe"", ""%APPDATA%\\Adobe""],
+      ""domains"": [""adobe.io"", ""adobestats.io"", ""adobegenuine.com"", ""cc-api-data.adobe.io"", ""ic.adobe.io"", ""prod.adobegenuine.com""],
+      ""icon"": ""Adobe.png"",
+      ""gradientStart"": ""#3b82f6"",
+      ""gradientEnd"": ""#06b6d4""
+    },
+    {
+      ""name"": ""Autodesk"",
+      ""paths"": [""C:\\Program Files\\Autodesk"", ""C:\\Program Files (x86)\\Autodesk"", ""%LOCALAPPDATA%\\Autodesk"", ""%APPDATA%\\Autodesk""],
+      ""domains"": [""autodesk.com"", ""genuine.autodesk.com"", ""cur.autodesk.com"", ""app.core.collaboration.autodesk.com"", ""api.autodesk.com"", ""ase-cdn.autodesk.com"", ""stats.autodesk.com""],
+      ""icon"": ""Autodesk.png"",
+      ""gradientStart"": ""#fb923c"",
+      ""gradientEnd"": ""#f43f5e""
+    },
+    {
+      ""name"": ""SolidWorks"",
+      ""paths"": [""C:\\Program Files\\SOLIDWORKS Corp"", ""C:\\Program Files\\SOLIDWORKS"", ""C:\\Program Files (x86)\\SOLIDWORKS"", ""C:\\Program Files\\Common Files\\SOLIDWORKS""],
+      ""domains"": [""solidworks.com"", ""ds.betonsim.com"", ""customerportal.solidworks.com""],
+      ""icon"": ""SolidWork.png"",
+      ""gradientStart"": ""#14b8a6"",
+      ""gradientEnd"": ""#3b82f6""
+    },
+    {
+      ""name"": ""Corel"",
+      ""paths"": [""C:\\Program Files\\Corel"", ""C:\\Program Files (x86)\\Corel"", ""%LOCALAPPDATA%\\Corel"", ""%APPDATA%\\Corel""],
+      ""domains"": [""corel.com"", ""updates.corel.com""],
+      ""icon"": ""Corel.png"",
+      ""gradientStart"": ""#8b5cf6"",
+      ""gradientEnd"": ""#ec4899""
+    }
+  ]
+}";
+        }
+    }
+}
