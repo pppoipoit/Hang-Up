@@ -80,12 +80,39 @@ function Build-AppBundle([string]$RuntimeId, [string]$OutputName) {
     # 6. Create PkgInfo
     Set-Content -Path (Join-Path $ContentsDir "PkgInfo") -Value "APPL????" -Encoding ASCII -NoNewline
 
-    # 7. Create ZIP package for easy distribution to macOS
+    # 7. Create ZIP package with proper POSIX execute permissions (0755)
     $ZipFile = Join-Path $DistDir "$OutputName.zip"
     if (Test-Path $ZipFile) {
         Remove-Item $ZipFile -Force
     }
-    Compress-Archive -Path $AppBundle -DestinationPath $ZipFile -Force
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    $zip = [System.IO.Compression.ZipFile]::Open($ZipFile, [System.IO.Compression.ZipArchiveMode]::Create)
+    $files = Get-ChildItem -Path $AppBundle -Recurse -File
+
+    foreach ($file in $files) {
+        $relPath = $file.FullName.Substring($AppBundle.Length + 1).Replace('\', '/')
+        $entryName = "$OutputName.app/$relPath"
+        $entry = $zip.CreateEntry($entryName, [System.IO.Compression.CompressionLevel]::Optimal)
+
+        # Set Unix file permissions (Upper 16 bits of ExternalAttributes)
+        # 0x81ed0000 = -rwxr-xr-x (0100755 octal) for executables
+        # 0x81a40000 = -rw-r--r-- (0100644 octal) for regular files
+        if ($file.FullName -like "*Contents\MacOS\*" -or $file.Extension -in ".dylib", ".so") {
+            $entry.ExternalAttributes = 0x81ed0000
+        } else {
+            $entry.ExternalAttributes = 0x81a40000
+        }
+
+        $fs = [System.IO.File]::OpenRead($file.FullName)
+        $es = $entry.Open()
+        $fs.CopyTo($es)
+        $es.Dispose()
+        $fs.Dispose()
+    }
+    $zip.Dispose()
 
     Write-Host " Build Complete!" -ForegroundColor Green
     Write-Host " App Bundle: $AppBundle" -ForegroundColor Yellow
