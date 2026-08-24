@@ -13,7 +13,7 @@ function Build-AppBundle([string]$RuntimeId, [string]$OutputName) {
     Write-Host " Building HangUp for macOS ($RuntimeId)..." -ForegroundColor Cyan
     Write-Host "==========================================" -ForegroundColor Cyan
 
-    $PublishDir = Join-Path $ProjectDir "src\HangUp.Mac.App\bin\Release\net10.0\$RuntimeId\publish"
+    $PublishDir = Join-Path $ProjectDir "src\HangUp.Mac.App\bin\Release\net8.0\$RuntimeId\publish"
     
     # 1. Publish Self-Contained Binary
     dotnet publish $AppProject -c Release -r $RuntimeId --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
