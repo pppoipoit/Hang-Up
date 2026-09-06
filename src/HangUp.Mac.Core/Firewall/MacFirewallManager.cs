@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -15,99 +16,162 @@ namespace HangUp.Mac.Core.Firewall
 
         public async Task BlockAppAsync(AppProfile app)
         {
-            var scriptBuilder = new StringBuilder();
-            
-            if (app.Domains != null && app.Domains.Count > 0)
-            {
-                // First ensure it's not already blocked to avoid duplicates
-                string startMarker = $"# HangUp_Block_Start_{app.Name}";
-                string endMarker = $"# HangUp_Block_End_{app.Name}";
-                scriptBuilder.AppendLine($"sed -i '' '/{startMarker}/,/{endMarker}/d' /etc/hosts");
+            var sb = new StringBuilder();
+            sb.Append(GenerateBlockScript(app));
+            sb.AppendLine("dscacheutil -flushcache || true");
+            sb.AppendLine("killall -HUP mDNSResponder || true");
 
-                scriptBuilder.AppendLine($"echo '{startMarker}' >> /etc/hosts");
-                foreach (var domain in app.Domains)
-                {
-                    scriptBuilder.AppendLine($"echo '127.0.0.1 {domain}' >> /etc/hosts");
-                    scriptBuilder.AppendLine($"echo '::1 {domain}' >> /etc/hosts");
-                }
-                scriptBuilder.AppendLine($"echo '{endMarker}' >> /etc/hosts");
-                
-                scriptBuilder.AppendLine("dscacheutil -flushcache");
-                scriptBuilder.AppendLine("killall -HUP mDNSResponder");
-            }
-
-            if (scriptBuilder.Length > 0)
-            {
-                await RunAsAdminAsync(scriptBuilder.ToString());
-            }
+            await RunAsAdminAsync(sb.ToString());
         }
 
         public async Task UnblockAppAsync(AppProfile app)
         {
-            var scriptBuilder = new StringBuilder();
-            
-            if (app.Domains != null && app.Domains.Count > 0)
-            {
-                string startMarker = $"# HangUp_Block_Start_{app.Name}";
-                string endMarker = $"# HangUp_Block_End_{app.Name}";
-                scriptBuilder.AppendLine($"sed -i '' '/{startMarker}/,/{endMarker}/d' /etc/hosts");
-                
-                scriptBuilder.AppendLine("dscacheutil -flushcache");
-                scriptBuilder.AppendLine("killall -HUP mDNSResponder");
-            }
+            var sb = new StringBuilder();
+            sb.Append(GenerateUnblockScript(app));
+            sb.AppendLine("dscacheutil -flushcache || true");
+            sb.AppendLine("killall -HUP mDNSResponder || true");
 
-            if (scriptBuilder.Length > 0)
+            await RunAsAdminAsync(sb.ToString());
+        }
+
+        public async Task BlockAllAppsAsync(IEnumerable<AppProfile> apps)
+        {
+            var sb = new StringBuilder();
+            foreach (var app in apps)
             {
-                await RunAsAdminAsync(scriptBuilder.ToString());
+                sb.Append(GenerateBlockScript(app));
             }
+            sb.AppendLine("dscacheutil -flushcache || true");
+            sb.AppendLine("killall -HUP mDNSResponder || true");
+
+            await RunAsAdminAsync(sb.ToString());
+        }
+
+        public async Task UnblockAllAppsAsync(IEnumerable<AppProfile> apps)
+        {
+            var sb = new StringBuilder();
+            foreach (var app in apps)
+            {
+                sb.Append(GenerateUnblockScript(app));
+            }
+            sb.AppendLine("dscacheutil -flushcache || true");
+            sb.AppendLine("killall -HUP mDNSResponder || true");
+
+            await RunAsAdminAsync(sb.ToString());
+        }
+
+        private static string GenerateBlockScript(AppProfile app)
+        {
+            var sb = new StringBuilder();
+            if (app.Domains == null || app.Domains.Count == 0) return string.Empty;
+
+            string startMarker = $"# HangUp_Block_Start_{app.Name}";
+            string endMarker = $"# HangUp_Block_End_{app.Name}";
+
+            // 1. Clean existing block marker and lines if present
+            sb.AppendLine($"sed -i '' '/{startMarker}/,/{endMarker}/d' /etc/hosts");
+
+            // 2. Append new block rules
+            sb.AppendLine($"echo '{startMarker}' >> /etc/hosts");
+            foreach (var domain in app.Domains)
+            {
+                if (!string.IsNullOrWhiteSpace(domain))
+                {
+                    string trimmed = domain.Trim();
+                    sb.AppendLine($"echo '127.0.0.1 {trimmed}' >> /etc/hosts");
+                    sb.AppendLine($"echo '::1 {trimmed}' >> /etc/hosts");
+                }
+            }
+            sb.AppendLine($"echo '{endMarker}' >> /etc/hosts");
+
+            return sb.ToString();
+        }
+
+        private static string GenerateUnblockScript(AppProfile app)
+        {
+            if (app.Domains == null || app.Domains.Count == 0) return string.Empty;
+
+            string startMarker = $"# HangUp_Block_Start_{app.Name}";
+            string endMarker = $"# HangUp_Block_End_{app.Name}";
+
+            return $"sed -i '' '/{startMarker}/,/{endMarker}/d' /etc/hosts\n";
         }
 
         private async Task RunAsAdminAsync(string bashScript)
         {
+            if (string.IsNullOrWhiteSpace(bashScript)) return;
+
             if (OperatingSystem.IsWindows())
             {
                 // Mock behavior for testing UI on Windows
                 Console.WriteLine("Mocking Mac Sudo Execution on Windows:\n" + bashScript);
-                await Task.Delay(500);
+                await Task.Delay(300);
                 return;
             }
 
-            // Escape quotes for AppleScript (replace " with \")
-            string escapedScript = bashScript.Replace("\"", "\\\"");
-            
-            // Execute via osascript to get native GUI password prompt
-            string appleScript = $"do shell script \"{escapedScript}\" with administrator privileges";
-            
-            var tcs = new TaskCompletionSource();
-            
-            var process = new Process
+            // Write temporary shell script with standard LF line endings in /tmp
+            string tempScript = Path.Combine(Path.GetTempPath(), $"hangup_{Guid.NewGuid():N}.sh");
+            string fullScript = "#!/bin/sh\n" + bashScript.Replace("\r\n", "\n") + "\n";
+            await File.WriteAllTextAsync(tempScript, fullScript, new UTF8Encoding(false));
+
+            try
             {
-                StartInfo = new ProcessStartInfo
+                // Grant executable permissions
+                var chmodInfo = new ProcessStartInfo
+                {
+                    FileName = "chmod",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                chmodInfo.ArgumentList.Add("+x");
+                chmodInfo.ArgumentList.Add(tempScript);
+
+                using var chmodProcess = Process.Start(chmodInfo);
+                if (chmodProcess != null)
+                {
+                    await chmodProcess.WaitForExitAsync();
+                }
+
+                // Execute via osascript with native macOS administrator password prompt
+                // Using ArgumentList ensures zero command-line escaping / quote breakage
+                string appleScript = $"do shell script \"\\\"{tempScript}\\\"\" with administrator privileges";
+                
+                var startInfo = new ProcessStartInfo
                 {
                     FileName = "osascript",
-                    Arguments = $"-e '{appleScript}'",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     CreateNoWindow = true
-                },
-                EnableRaisingEvents = true
-            };
+                };
+                startInfo.ArgumentList.Add("-e");
+                startInfo.ArgumentList.Add(appleScript);
 
-            process.Exited += (s, e) => 
+                using var process = new Process { StartInfo = startInfo };
+                process.Start();
+
+                string stdErr = await process.StandardError.ReadToEndAsync();
+                await process.WaitForExitAsync();
+
+                if (process.ExitCode != 0)
+                {
+                    throw new Exception($"Failed to elevate ({process.ExitCode}): {stdErr}");
+                }
+            }
+            finally
             {
-                if (process.ExitCode == 0) tcs.SetResult();
-                else tcs.SetException(new Exception($"Failed to elevate. Exit code: {process.ExitCode}"));
-            };
-
-            process.Start();
-            await tcs.Task;
+                // Always clean up temp script
+                if (File.Exists(tempScript))
+                {
+                    try { File.Delete(tempScript); } catch { }
+                }
+            }
         }
-        
+
         public bool IsAppBlocked(AppProfile app)
         {
             if (OperatingSystem.IsWindows())
-                return false; // Mock
+                return false;
 
             try
             {

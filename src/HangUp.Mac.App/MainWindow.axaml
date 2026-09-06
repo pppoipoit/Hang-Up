@@ -130,13 +130,13 @@
                         <Button Grid.Column="0" Content="Block All" Classes="action-btn"
                                 Margin="0,0,8,0"
                                 Background="#2563eb" Foreground="White"
-                                Command="{Binding BlockAllAsync}"/>
+                                Command="{Binding BlockAllCommand}"/>
 
                         <Button Grid.Column="1" Content="Unblock All" Classes="action-btn"
                                 Margin="8,0,0,0"
                                 Background="#1e1b4b" Foreground="#f43f5e"
                                 BorderBrush="#f43f5e" BorderThickness="1"
-                                Command="{Binding UnblockAllAsync}"/>
+                                Command="{Binding UnblockAllCommand}"/>
                     </Grid>
 
                     <!-- Status Message / Loading Indicator -->

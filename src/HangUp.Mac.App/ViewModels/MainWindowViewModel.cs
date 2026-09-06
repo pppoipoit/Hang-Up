@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using HangUp.Mac.Core.Config;
 using HangUp.Mac.Core.Firewall;
 
@@ -41,6 +42,8 @@ namespace HangUp.Mac.App.ViewModels
                 {
                     _isBusy = value;
                     OnPropertyChanged();
+                    (BlockAllCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (UnblockAllCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -58,10 +61,16 @@ namespace HangUp.Mac.App.ViewModels
             }
         }
 
+        public ICommand BlockAllCommand { get; }
+        public ICommand UnblockAllCommand { get; }
+
         public MainWindowViewModel()
         {
             _profileStore = new ProfileStore();
             _firewallManager = new MacFirewallManager();
+
+            BlockAllCommand = new RelayCommand(async () => await BlockAllAsync(), () => !IsBusy);
+            UnblockAllCommand = new RelayCommand(async () => await UnblockAllAsync(), () => !IsBusy);
 
             LoadApps();
         }
@@ -82,7 +91,7 @@ namespace HangUp.Mac.App.ViewModels
             NotifyStatsChanged();
         }
 
-        private async Task HandleToggleAppAsync(AppItemViewModel appVm, bool blocked)
+        public async Task HandleToggleAppAsync(AppItemViewModel appVm, bool blocked)
         {
             if (IsBusy) return;
 
@@ -100,13 +109,18 @@ namespace HangUp.Mac.App.ViewModels
                     await _firewallManager.UnblockAppAsync(appVm.Profile);
                 }
 
-                StatusMessage = $"{appVm.Name} {(blocked ? "Blocked" : "Allowed")}";
+                // Verify actual state from /etc/hosts
+                bool actuallyBlocked = _firewallManager.IsAppBlocked(appVm.Profile);
+                appVm.SetBlockedSilent(actuallyBlocked);
+
+                StatusMessage = $"{appVm.Name} {(actuallyBlocked ? "Blocked" : "Allowed")}";
             }
             catch (Exception ex)
             {
                 StatusMessage = $"Error: {ex.Message}";
-                // Revert toggle state on failure
-                appVm.SetBlockedSilent(!blocked);
+                // Revert to true status from /etc/hosts
+                bool actuallyBlocked = _firewallManager.IsAppBlocked(appVm.Profile);
+                appVm.SetBlockedSilent(actuallyBlocked);
             }
             finally
             {
@@ -124,17 +138,25 @@ namespace HangUp.Mac.App.ViewModels
                 IsBusy = true;
                 StatusMessage = "Blocking all applications...";
 
+                var profiles = Apps.Select(a => a.Profile).ToList();
+                await _firewallManager.BlockAllAppsAsync(profiles);
+
                 foreach (var appVm in Apps)
                 {
-                    await _firewallManager.BlockAppAsync(appVm.Profile);
-                    appVm.SetBlockedSilent(true);
+                    bool actuallyBlocked = _firewallManager.IsAppBlocked(appVm.Profile);
+                    appVm.SetBlockedSilent(actuallyBlocked);
                 }
 
-                StatusMessage = "All applications blocked";
+                StatusMessage = "All applications blocked successfully";
             }
             catch (Exception ex)
             {
                 StatusMessage = $"Error: {ex.Message}";
+                foreach (var appVm in Apps)
+                {
+                    bool actuallyBlocked = _firewallManager.IsAppBlocked(appVm.Profile);
+                    appVm.SetBlockedSilent(actuallyBlocked);
+                }
             }
             finally
             {
@@ -152,10 +174,13 @@ namespace HangUp.Mac.App.ViewModels
                 IsBusy = true;
                 StatusMessage = "Unblocking all applications...";
 
+                var profiles = Apps.Select(a => a.Profile).ToList();
+                await _firewallManager.UnblockAllAppsAsync(profiles);
+
                 foreach (var appVm in Apps)
                 {
-                    await _firewallManager.UnblockAppAsync(appVm.Profile);
-                    appVm.SetBlockedSilent(false);
+                    bool actuallyBlocked = _firewallManager.IsAppBlocked(appVm.Profile);
+                    appVm.SetBlockedSilent(actuallyBlocked);
                 }
 
                 StatusMessage = "All applications allowed";
@@ -163,6 +188,11 @@ namespace HangUp.Mac.App.ViewModels
             catch (Exception ex)
             {
                 StatusMessage = $"Error: {ex.Message}";
+                foreach (var appVm in Apps)
+                {
+                    bool actuallyBlocked = _firewallManager.IsAppBlocked(appVm.Profile);
+                    appVm.SetBlockedSilent(actuallyBlocked);
+                }
             }
             finally
             {
@@ -184,5 +214,48 @@ namespace HangUp.Mac.App.ViewModels
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+    }
+
+    public class RelayCommand : ICommand
+    {
+        private readonly Func<Task>? _asyncExecute;
+        private readonly Action? _syncExecute;
+        private readonly Func<bool>? _canExecute;
+        private bool _isExecuting;
+
+        public event EventHandler? CanExecuteChanged;
+
+        public RelayCommand(Func<Task> asyncExecute, Func<bool>? canExecute = null)
+        {
+            _asyncExecute = asyncExecute;
+            _canExecute = canExecute;
+        }
+
+        public RelayCommand(Action syncExecute, Func<bool>? canExecute = null)
+        {
+            _syncExecute = syncExecute;
+            _canExecute = canExecute;
+        }
+
+        public bool CanExecute(object? parameter) => !_isExecuting && (_canExecute?.Invoke() ?? true);
+
+        public async void Execute(object? parameter)
+        {
+            if (!CanExecute(parameter)) return;
+            try
+            {
+                _isExecuting = true;
+                RaiseCanExecuteChanged();
+                if (_asyncExecute != null) await _asyncExecute();
+                else _syncExecute?.Invoke();
+            }
+            finally
+            {
+                _isExecuting = false;
+                RaiseCanExecuteChanged();
+            }
+        }
+
+        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }
