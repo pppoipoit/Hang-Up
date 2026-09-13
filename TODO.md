@@ -22,6 +22,12 @@ This file tracks the current state of the project. **AI Developers: Update this 
 - [x] Published for Apple Silicon (`HangUp-AppleSilicon.app` / `HangUp-AppleSilicon.zip`).
 - [x] Published for Intel Mac (`HangUp-Intel.app` / `HangUp-Intel.zip`).
 
+## 🟢 Completed (Phase 4: Elevation & Robust Blocking)
+- [x] Eliminated process deadlock in `osascript` execution (read stdout and stderr concurrently via `Task.WhenAll`).
+- [x] Replaced fragile `sed` scripts with atomic C# in-memory hosts management + clean `cp` from `/tmp`.
+- [x] Relocated temp execution script to `/tmp` instead of `/var/folders/` to eliminate macOS TCC/Darwin permission rejections.
+- [x] Added user cancellation detection (`-128`) and multi-color status message feedback (Red/Green/Blue/Orange).
+
 ## 🛠 Current Known Issues / Notes
 * When transferring `.app` or extracting `.zip` on macOS for the first time without an Apple Developer certificate, run `xattr -cr /path/to/HangUp-*.app` or right-click -> Open to bypass Gatekeeper quarantine.
 
