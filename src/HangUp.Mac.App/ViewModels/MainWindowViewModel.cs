@@ -16,6 +16,7 @@ namespace HangUp.Mac.App.ViewModels
         private readonly MacFirewallManager _firewallManager;
         private bool _isBusy;
         private string _statusMessage = "Ready";
+        private string _statusMessageColor = "#94a3b8";
 
         public ObservableCollection<AppItemViewModel> Apps { get; } = new();
 
@@ -61,6 +62,19 @@ namespace HangUp.Mac.App.ViewModels
             }
         }
 
+        public string StatusMessageColor
+        {
+            get => _statusMessageColor;
+            set
+            {
+                if (_statusMessageColor != value)
+                {
+                    _statusMessageColor = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public ICommand BlockAllCommand { get; }
         public ICommand UnblockAllCommand { get; }
 
@@ -99,6 +113,7 @@ namespace HangUp.Mac.App.ViewModels
             {
                 IsBusy = true;
                 StatusMessage = blocked ? $"Blocking {appVm.Name}..." : $"Unblocking {appVm.Name}...";
+                StatusMessageColor = "#38bdf8";
 
                 if (blocked)
                 {
@@ -114,10 +129,21 @@ namespace HangUp.Mac.App.ViewModels
                 appVm.SetBlockedSilent(actuallyBlocked);
 
                 StatusMessage = $"{appVm.Name} {(actuallyBlocked ? "Blocked" : "Allowed")}";
+                StatusMessageColor = actuallyBlocked ? "#22c55e" : "#94a3b8";
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Error: {ex.Message}";
+                if (ex.Message.Contains("-128") || ex.Message.IndexOf("User canceled", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    StatusMessage = "Authorization cancelled.";
+                    StatusMessageColor = "#fb923c";
+                }
+                else
+                {
+                    StatusMessage = $"Error: {ex.Message}";
+                    StatusMessageColor = "#f43f5e";
+                }
+
                 // Revert to true status from /etc/hosts
                 bool actuallyBlocked = _firewallManager.IsAppBlocked(appVm.Profile);
                 appVm.SetBlockedSilent(actuallyBlocked);
@@ -137,6 +163,7 @@ namespace HangUp.Mac.App.ViewModels
             {
                 IsBusy = true;
                 StatusMessage = "Blocking all applications...";
+                StatusMessageColor = "#38bdf8";
 
                 var profiles = Apps.Select(a => a.Profile).ToList();
                 await _firewallManager.BlockAllAppsAsync(profiles);
@@ -148,10 +175,21 @@ namespace HangUp.Mac.App.ViewModels
                 }
 
                 StatusMessage = "All applications blocked successfully";
+                StatusMessageColor = "#22c55e";
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Error: {ex.Message}";
+                if (ex.Message.Contains("-128") || ex.Message.IndexOf("User canceled", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    StatusMessage = "Authorization cancelled.";
+                    StatusMessageColor = "#fb923c";
+                }
+                else
+                {
+                    StatusMessage = $"Error: {ex.Message}";
+                    StatusMessageColor = "#f43f5e";
+                }
+
                 foreach (var appVm in Apps)
                 {
                     bool actuallyBlocked = _firewallManager.IsAppBlocked(appVm.Profile);
@@ -173,6 +211,7 @@ namespace HangUp.Mac.App.ViewModels
             {
                 IsBusy = true;
                 StatusMessage = "Unblocking all applications...";
+                StatusMessageColor = "#38bdf8";
 
                 var profiles = Apps.Select(a => a.Profile).ToList();
                 await _firewallManager.UnblockAllAppsAsync(profiles);
@@ -184,10 +223,21 @@ namespace HangUp.Mac.App.ViewModels
                 }
 
                 StatusMessage = "All applications allowed";
+                StatusMessageColor = "#22c55e";
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Error: {ex.Message}";
+                if (ex.Message.Contains("-128") || ex.Message.IndexOf("User canceled", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    StatusMessage = "Authorization cancelled.";
+                    StatusMessageColor = "#fb923c";
+                }
+                else
+                {
+                    StatusMessage = $"Error: {ex.Message}";
+                    StatusMessageColor = "#f43f5e";
+                }
+
                 foreach (var appVm in Apps)
                 {
                     bool actuallyBlocked = _firewallManager.IsAppBlocked(appVm.Profile);

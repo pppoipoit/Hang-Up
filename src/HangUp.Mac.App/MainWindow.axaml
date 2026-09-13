@@ -140,7 +140,14 @@
                     </Grid>
 
                     <!-- Status Message / Loading Indicator -->
-                    <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#64748b" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    <TextBlock Text="{Binding StatusMessage}" 
+                               FontSize="12" 
+                               Foreground="{Binding StatusMessageColor}" 
+                               HorizontalAlignment="Center" 
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               MaxWidth="380"
+                               Margin="0,4,0,0"/>
 
                 </StackPanel>
             </ScrollViewer>
