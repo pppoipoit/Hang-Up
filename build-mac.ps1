@@ -114,6 +114,45 @@ function Build-AppBundle([string]$RuntimeId, [string]$OutputName) {
     }
     $zip.Dispose()
 
+    # Patch Central Directory headers to mark Host OS as UNIX (0x03)
+    # This ensures macOS Archive Utility extracts the .app with full executable permissions (+x) without Terminal!
+    $fs = [System.IO.File]::Open($ZipFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite)
+    $len = $fs.Length
+    $buffer = New-Object byte[] 1024
+    $fs.Seek($len - 1024, [System.IO.SeekOrigin]::Begin) | Out-Null
+    $fs.Read($buffer, 0, 1024) | Out-Null
+
+    $cdOffset = -1
+    for ($i = 1020; $i -ge 0; $i--) {
+        if ($buffer[$i] -eq 0x50 -and $buffer[$i+1] -eq 0x4b -and $buffer[$i+2] -eq 0x05 -and $buffer[$i+3] -eq 0x06) {
+            $cdOffset = [System.BitConverter]::ToUInt32($buffer, $i + 16)
+            break
+        }
+    }
+
+    if ($cdOffset -ge 0) {
+        $fs.Seek($cdOffset, [System.IO.SeekOrigin]::Begin) | Out-Null
+        $entryHeader = New-Object byte[] 46
+        while ($fs.Position -lt ($len - 22)) {
+            $pos = $fs.Position
+            $read = $fs.Read($entryHeader, 0, 46)
+            if ($read -lt 46) { break }
+            if ($entryHeader[0] -eq 0x50 -and $entryHeader[1] -eq 0x4b -and $entryHeader[2] -eq 0x01 -and $entryHeader[3] -eq 0x02) {
+                if ($entryHeader[5] -ne 0x03) {
+                    $fs.Seek($pos + 5, [System.IO.SeekOrigin]::Begin) | Out-Null
+                    $fs.WriteByte(0x03) # Set Host OS to Unix
+                }
+                $fileNameLen = [System.BitConverter]::ToUInt16($entryHeader, 28)
+                $extraLen = [System.BitConverter]::ToUInt16($entryHeader, 30)
+                $commentLen = [System.BitConverter]::ToUInt16($entryHeader, 32)
+                $fs.Seek($pos + 46 + $fileNameLen + $extraLen + $commentLen, [System.IO.SeekOrigin]::Begin) | Out-Null
+            } else {
+                break
+            }
+        }
+    }
+    $fs.Dispose()
+
     Write-Host " Build Complete!" -ForegroundColor Green
     Write-Host " App Bundle: $AppBundle" -ForegroundColor Yellow
     Write-Host " Zip File:   $ZipFile" -ForegroundColor Yellow
