@@ -13,6 +13,7 @@
         Background="Transparent"
         TransparencyLevelHint="AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40"
         WindowStartupLocation="CenterScreen">
 
     <Window.Styles>
@@ -42,14 +43,14 @@
 
         <Grid RowDefinitions="Auto,*">
             <!-- Top Drag Area for Custom Window -->
-            <Border Grid.Row="0" Height="36" Background="Transparent" IsHitTestVisible="True" />
+            <Border Grid.Row="0" Height="40" Background="Transparent" PointerPressed="OnPointerPressed" />
 
             <!-- Main Content ScrollArea -->
             <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="24,10,24,24" Spacing="18">
 
-                    <!-- Header with App Icon -->
-                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                    <!-- Header with App Icon (also draggable) -->
+                    <StackPanel HorizontalAlignment="Center" Spacing="6" Background="Transparent" PointerPressed="OnPointerPressed">
                         <Image Source="/Assets/handup.png" Width="80" Height="80" HorizontalAlignment="Center" />
                         <TextBlock Text="Hang Up !!" FontSize="22" FontWeight="ExtraBold" Foreground="#f8fafc" HorizontalAlignment="Center" LetterSpacing="0.5"/>
                         <TextBlock Text="Manage your application firewall" FontSize="13" Foreground="#64748b" HorizontalAlignment="Center"/>
