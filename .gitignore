@@ -1,4 +1,6 @@
-# Build results
+# .NET build results
+[Bb]in/
+[Oo]bj/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
@@ -8,25 +10,47 @@ x86/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
 bld/
-[Bb]in/
-[Oo]bj/
 [Ll]og/
 [Ll]ogs/
+publish/
 
-# Visual Studio / Rider / VS Code cache
-.vs/
-.vscode/
-.idea/
-*.user
-*.userosscache
-*.sln.docstates
-
-# Windows / OS specific
+# Windows
+*.exe
+*.msi
+*.dll
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
-.DS_Store
+*.lnk
 
-# Output publish
-publish/
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+*.app/
+*.dmg
+*.pkg
+
+# Python / Node
+__pycache__/
+*.py[cod]
+node_modules/
+dist/
+build/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.user
+*.userosscache
+*.sln.docstates
+
+# Environment / secrets
+.env
+.env.*
+
