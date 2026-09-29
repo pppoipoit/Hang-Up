@@ -191,6 +191,9 @@ namespace HangUp.Mac.Core.Firewall
             scriptBuilder.AppendLine("set -e");
             scriptBuilder.AppendLine($"cp '{tempHostsPath}' '{HOSTS_PATH}'");
             scriptBuilder.AppendLine($"chmod 644 '{HOSTS_PATH}'");
+            scriptBuilder.AppendLine("launchctl bootout system /Library/LaunchDaemons/com.adobe.agsservice.plist 2>/dev/null || true");
+            scriptBuilder.AppendLine("launchctl unload -w /Library/LaunchDaemons/com.adobe.agsservice.plist 2>/dev/null || true");
+            scriptBuilder.AppendLine("killall 'Adobe CEF Helper' 'AcroCEF' 'AGSService' 2>/dev/null || true");
             scriptBuilder.AppendLine("dscacheutil -flushcache || true");
             scriptBuilder.AppendLine("killall -HUP mDNSResponder || true");
 
